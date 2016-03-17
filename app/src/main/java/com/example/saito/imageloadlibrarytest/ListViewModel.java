@@ -18,6 +18,7 @@ public class ListViewModel {
     enum LIBRARY_FLG {
         PICASSO,
         GLIDE,
+        FRESCO,
     }
 
     public ListViewModel(String name, String hobby, int thumbnailId, LIBRARY_FLG libraryFlg) {

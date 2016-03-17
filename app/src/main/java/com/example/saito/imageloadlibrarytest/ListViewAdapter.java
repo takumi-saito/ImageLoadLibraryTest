@@ -1,7 +1,9 @@
 package com.example.saito.imageloadlibrarytest;
 
 import android.content.Context;
+import android.graphics.drawable.Animatable;
 import android.net.Uri;
+import android.support.annotation.Nullable;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -14,6 +16,12 @@ import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.resource.drawable.GlideDrawable;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.Target;
+import com.facebook.drawee.backends.pipeline.Fresco;
+import com.facebook.drawee.controller.BaseControllerListener;
+import com.facebook.drawee.controller.ControllerListener;
+import com.facebook.drawee.interfaces.DraweeController;
+import com.facebook.drawee.view.SimpleDraweeView;
+import com.facebook.imagepipeline.image.ImageInfo;
 import com.squareup.picasso.Picasso;
 
 import java.util.List;
@@ -25,11 +33,17 @@ public class ListViewAdapter extends ArrayAdapter<ListViewModel>{
 
     private static final String TAG = ListViewAdapter.class.getSimpleName();
 
+    public ListViewAdapter(Context context, int resource) {
+        super(context, resource);
+        Fresco.initialize(context);
+    }
+
     // Viewにタグ付けするオブジェクトとして、ViewHolderというものを作る
     private static class ViewHolder {
         public TextView nameTextView;
         public TextView hobbyTextView;
         public ImageView thumbnailBitmap;
+        public SimpleDraweeView frescoThumbnailBitmap;
 
         /**
          *
@@ -41,6 +55,8 @@ public class ListViewAdapter extends ArrayAdapter<ListViewModel>{
             this.hobbyTextView = (TextView) v.findViewById(R.id.textHobby);
             this.thumbnailBitmap = (ImageView) v
                     .findViewById(R.id.imageThumbnail);
+            this.frescoThumbnailBitmap = (SimpleDraweeView) v
+                    .findViewById(R.id.frescoImageThumbnail);
         }
     }
 
@@ -53,14 +69,33 @@ public class ListViewAdapter extends ArrayAdapter<ListViewModel>{
         this.layoutInflater = (LayoutInflater) context
                 .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
     }
-
+    public ListViewAdapter(Context context, int resource, List<ListViewModel> objects, boolean flg) {
+        super(context, resource, objects);
+        mContext = context;
+        this.layoutInflater = (LayoutInflater) context
+                .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        if (flg) {
+            Fresco.initialize(context);
+        }
+    }
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
         ViewHolder holder;
+
+        ListViewModel item = getItem(position);
         // Viewがリサイクル出来ない場合
         if (convertView == null) {
             // Viewにレイアウトの情報を登録する
-            convertView = layoutInflater.inflate(R.layout.list_base, null);
+            switch (item.getLibraryFlg()) {
+            case PICASSO:
+            case GLIDE:
+                convertView = layoutInflater.inflate(R.layout.list_base, null);
+                break;
+            case FRESCO:
+                convertView = layoutInflater.inflate(R.layout.fresco_list_base, null);
+                break;
+            }
+
             // Viewがリサイクル出来る場合はnewする必要がないので、holderはここでnewする
             holder = new ViewHolder(convertView);
             // リサイクルするときのためにタグ付けしておく
@@ -70,8 +105,7 @@ public class ListViewAdapter extends ArrayAdapter<ListViewModel>{
             holder = (ViewHolder) convertView.getTag();
         }
 
-        //
-        ListViewModel item = getItem(position);
+
         holder.nameTextView.setText(item.getName());
         holder.hobbyTextView.setText(item.getHobby());
 
@@ -82,13 +116,18 @@ public class ListViewAdapter extends ArrayAdapter<ListViewModel>{
             case GLIDE:
                 imageLoadGlide(holder, item);
                 break;
+            case FRESCO:
+                imageLoadFresco(holder, item);
+                break;
         }
-
-
-
         return convertView; //view を返す
     }
 
+    /**
+     *
+     * @param holder
+     * @param item
+     */
     private void imageLoadGlide(ViewHolder holder, ListViewModel item) {
         Glide.with(mContext)
                 .load(item.getThumbnailUrl())
@@ -115,6 +154,12 @@ public class ListViewAdapter extends ArrayAdapter<ListViewModel>{
                 })
                 .into(holder.thumbnailBitmap);  // imageViewに投入
     }
+
+    /**
+     *
+     * @param holder
+     * @param item
+     */
     private void imageLoadPicasso(ViewHolder holder, ListViewModel item) {
         Picasso.Builder builder = new Picasso.Builder(mContext);
         builder.listener(new Picasso.Listener() {
@@ -125,11 +170,46 @@ public class ListViewAdapter extends ArrayAdapter<ListViewModel>{
             }
 
         });
+
         Picasso picasso = builder.build();
         picasso.with(mContext)
                 .load(item.getThumbnailUrl())
                 .placeholder(android.R.drawable.ic_menu_call)   // ローディング画像
                 .error(android.R.drawable.ic_delete)    // エラー画像
                 .into(holder.thumbnailBitmap);  // imageViewに投入
+    }
+
+    /**
+     *
+     * @param holder
+     * @param item
+     */
+    private void imageLoadFresco(ViewHolder holder, ListViewModel item) {
+
+        SimpleDraweeView draweeView = holder.frescoThumbnailBitmap;
+        draweeView.setImageURI(Uri.parse(item.getThumbnailUrl()));
+//        ControllerListener controllerListener = new BaseControllerListener<ImageInfo>() {
+//            @Override
+//            public void onFinalImageSet(
+//                    String id,
+//                    @Nullable
+//                    ImageInfo imageInfo,
+//                    @Nullable
+//                    Animatable anim) {
+//            }
+//
+//            @Override
+//            public void onIntermediateImageSet(String id, @Nullable ImageInfo imageInfo) {
+//            }
+//
+//            @Override
+//            public void onFailure(String id, Throwable throwable) {
+//            }
+//        };
+//        DraweeController controller = Fresco.newDraweeControllerBuilder()
+//                .setControllerListener(controllerListener)
+//                .setUri(item.getThumbnailUrl())
+//                .build();
+//        holder.frescoThumbnailBitmap.setController(controller);
     }
 }
